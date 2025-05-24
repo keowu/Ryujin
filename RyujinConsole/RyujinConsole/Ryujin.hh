@@ -16,10 +16,12 @@ private:
 	const std::string& m_strOutputFilePath;
 	uintptr_t m_szFile;
 	BOOL m_isInitialized;
+	std::vector<RyujinProcedure> m_ryujinProcedures;
 
 public:
 	Ryujin(const std::string& strInputFilePath, const std::string& strPdbFilePath, const std::string& strOutputFilePath);
 	bool run();
+	void listRyujinProcedures();
 	~Ryujin();
 
 };

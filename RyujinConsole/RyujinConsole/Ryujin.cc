@@ -10,7 +10,32 @@ m_strInputFilePath(strInputFilePath), m_strOutputFilePath(strOutputFilePath), m_
 
 	if (!m_isInitialized) {
 
-		OutputDebugStringA("Ryujin::Ryujin: failed to initilize.\n");
+		::OutputDebugStringA(
+			
+			_In_ "Ryujin::Ryujin: failed to initilize.\n"
+		
+		);
+
+	}
+
+	m_ryujinProcedures = RyujinPdbParsing::ExtractProceduresFromPdb(
+
+		reinterpret_cast<uintptr_t>(m_mappedPE.get()),
+		m_szFile,
+		m_strInputFilePath,
+		m_strPdbFilePath
+
+	);
+
+	if (m_ryujinProcedures.size() == 0) {
+
+		m_isInitialized = FALSE;
+
+		::OutputDebugStringA(
+
+			_In_ "Ryujin::Ryujin: No Associate PDB file found for the input binary.."
+
+		);
 
 	}
 
@@ -22,7 +47,7 @@ bool Ryujin::run() {
 
 	if (imgDos->e_magic != IMAGE_DOS_SIGNATURE) {
 
-		OutputDebugStringA(
+		::OutputDebugStringA(
 			
 			_In_ "Ryujin::run: Invalid PE File.\n"
 		
@@ -35,7 +60,7 @@ bool Ryujin::run() {
 
 	if (imgNt->Signature != IMAGE_NT_SIGNATURE) {
 
-		OutputDebugStringA(
+		::OutputDebugStringA(
 			
 			_In_ "Ryujin::run: Invalid NT headers for the input PE File.\n"
 		
@@ -46,7 +71,7 @@ bool Ryujin::run() {
 
 	if (!m_isInitialized) {
 
-		OutputDebugStringA(
+		::OutputDebugStringA(
 			
 			_In_ "Ryujin::Ryujin: not initilized.\n"
 		
@@ -55,14 +80,26 @@ bool Ryujin::run() {
 		return FALSE;
 	}
 
-	auto syms = RyujinPdbParsing::ExtractProceduresFromPdb(
-		
-		reinterpret_cast<uintptr_t>(m_mappedPE.get()),
-		m_szFile,
-		m_strInputFilePath,
-		m_strPdbFilePath
-	
-	);
+}
+
+void Ryujin::listRyujinProcedures() {
+
+	if (!m_isInitialized) {
+
+		::OutputDebugStringA(
+
+			_In_ "Ryujin::Ryujin: not initilized.\n"
+
+		);
+
+		return;
+	}
+
+	for (auto& procedure : m_ryujinProcedures) {
+
+		std::printf("%s - 0x%llx - 0x%llx\n", procedure.name.c_str(), procedure.address, procedure.size);
+
+	}
 
 }
 
