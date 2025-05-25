@@ -42,6 +42,9 @@
     <ClCompile Include="Ryujin\RyujinCore\BasicBlockerBuilder.cc">
       <Filter>Ryujin\RyujinCore</Filter>
     </ClCompile>
+    <ClCompile Include="Ryujin\Utils\RyujinPESections.cc">
+      <Filter>Ryujin\Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Ryujin\Models\RyujinBasicBlock.hh">
@@ -67,6 +70,9 @@
     </ClInclude>
     <ClInclude Include="Ryujin\RyujinCore\BasicBlockerBuilder.hh">
       <Filter>Ryujin\RyujinCore</Filter>
+    </ClInclude>
+    <ClInclude Include="Ryujin\Utils\RyujinPESections.hh">
+      <Filter>Ryujin\Utils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

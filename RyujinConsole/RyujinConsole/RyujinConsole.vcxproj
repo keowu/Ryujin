@@ -134,6 +134,7 @@
     <ClCompile Include="RyujinConsole.cc" />
     <ClCompile Include="Ryujin\Ryujin.cc" />
     <ClCompile Include="Ryujin\RyujinCore\BasicBlockerBuilder.cc" />
+    <ClCompile Include="Ryujin\Utils\RyujinPESections.cc" />
     <ClCompile Include="Ryujin\Utils\RyujinUtils.cc" />
   </ItemGroup>
   <ItemGroup>
@@ -144,6 +145,7 @@
     <ClInclude Include="Ryujin\PDB\RyujinPdbParsing.hh" />
     <ClInclude Include="Ryujin\Ryujin.hh" />
     <ClInclude Include="Ryujin\RyujinCore\BasicBlockerBuilder.hh" />
+    <ClInclude Include="Ryujin\Utils\RyujinPESections.hh" />
     <ClInclude Include="Ryujin\Utils\RyujinUtils.hh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

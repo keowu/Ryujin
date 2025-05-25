@@ -1,7 +1,10 @@
 #include "Ryujin.hh"
 
-Ryujin::Ryujin(const std::string& strInputFilePath, const std::string& strPdbFilePath, const std::string& strOutputFilePath) :
-m_strInputFilePath(strInputFilePath), m_strOutputFilePath(strOutputFilePath), m_strPdbFilePath(strPdbFilePath) {
+Ryujin::Ryujin(const std::string& strInputFilePath, const std::string& strPdbFilePath, const std::string& strOutputFilePath) {
+
+	m_strInputFilePath.assign(strInputFilePath.begin(), strInputFilePath.end());
+	m_strOutputFilePath.assign(strOutputFilePath.begin(), strOutputFilePath.end());
+	m_strPdbFilePath.assign(strPdbFilePath.begin(), strPdbFilePath.end());
 
 	auto mappedInfo = RyujinUtils::MapPortableExecutableFileIntoMemory(m_strInputFilePath, m_mappedPE);
 
@@ -148,11 +151,18 @@ bool Ryujin::run(const RyujinObfuscatorConfig& config) {
 	//Add section
 	char chSectionName[8]{ '.', 'R', 'y', 'u', 'j', 'i', 'n', '\0' };
 	if (config.m_isRandomSection) RyujinUtils::randomizeSectionName(chSectionName);
-	RyujinUtils::AddNewSection(m_mappedPE, m_szFile, chSectionName);
+
+	RyujinPESections peSections;
+	peSections.AddNewSection(m_strInputFilePath, chSectionName);
+
+	//Process new opcodes
+	std::vector<unsigned char> tempValued = { 0xDE, 0xAD, 0xBE, 0xEF };
+	peSections.ProcessOpcodesNewSection(tempValued);
 
 	//Fix relocations
 
 	//Save output file
+	peSections.FinishNewSection(m_strOutputFilePath);
 
 }
 

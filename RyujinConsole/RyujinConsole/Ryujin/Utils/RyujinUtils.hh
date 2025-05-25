@@ -123,82 +123,132 @@ namespace RyujinUtils {
 		return std::make_pair(TRUE, szFile.QuadPart);
 	}
 
-	inline BOOL AddNewSection(std::shared_ptr<unsigned char>& mappedPE, uintptr_t szFile, char chSectionName[8]) {
-
-		auto ucModifiedPeMap = new unsigned char[szFile] { 0 };
-		std::memcpy(
-			
-			ucModifiedPeMap,
-			mappedPE.get(),
-			szFile
-		
-		);
-
-		auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(ucModifiedPeMap);
-		if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
-			
-			delete[] ucModifiedPeMap;
-
-			return FALSE;
-		}
-
-		auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(ucModifiedPeMap + dosHeader->e_lfanew);
-		if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
-
-			delete[] ucModifiedPeMap;
-
-			return FALSE;
-		}
-
-		auto sectionTableSize = ntHeaders->FileHeader.NumberOfSections * sizeof(IMAGE_SECTION_HEADER);
-		if (dosHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS) + sectionTableSize > ntHeaders->OptionalHeader.SizeOfHeaders) {
-			
-			//No space to insert a new section on this PE FILE :(
-
-			delete[] ucModifiedPeMap;
-
-			return FALSE;
-		}
-
-		//Adding the new section
-		IMAGE_SECTION_HEADER newSection{ 0 };
-		std::memcpy(
-			
-			newSection.Name,
-			chSectionName,
-			sizeof(chSectionName)
-		
-		);
-
-		auto imgLastSection = IMAGE_FIRST_SECTION(ntHeaders) + (ntHeaders->FileHeader.NumberOfSections - 1);
-
-		newSection.VirtualAddress = ALIGN_UP(
-			imgLastSection->VirtualAddress + imgLastSection->Misc.VirtualSize,
-			ntHeaders->OptionalHeader.SectionAlignment
-		);
-
-		newSection.PointerToRawData = ALIGN_UP(
-			imgLastSection->PointerToRawData + imgLastSection->SizeOfRawData,
-			ntHeaders->OptionalHeader.FileAlignment
-		);
-
-		newSection.Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
-
-		//Return the following in order to put data and calculate relocs: 
-		//newSection.VirtualAddress
-		//newSection.Misc.VirtualSize = size of new code;
-		//newSection.SizeOfRawData = ALIGN_UP(size of new code, ntHeaders->OptionalHeader.FileAlignment);
-		//Maybe is better wrap this things in a full new class ??
-
-		return FALSE;
-	}
-
 	inline void randomizeSectionName(char* chName) {
 
 		const char charset[] { "abcdefghijklmnopqrstuvwxyz" };
 		for (size_t i = 0; i < 8 - 1; ++i) chName[i] = charset[std::rand() % (sizeof(charset) - 1)];
 		chName[8 - 1] = '\0';
 
+	}
+
+	inline BOOL SaveBuffer(const std::string& strPath, unsigned char* ucBuffer, uintptr_t szBuffer) {
+
+		auto hFile = ::CreateFileA(
+
+			_In_ strPath.c_str(),
+			_In_ GENERIC_WRITE,
+			_In_ 0,
+			_In_opt_ nullptr,
+			_In_ CREATE_ALWAYS,
+			_In_ FILE_ATTRIBUTE_NORMAL,
+			_In_opt_ nullptr
+
+		);
+
+		if (hFile == INVALID_HANDLE_VALUE) return FALSE;
+
+		DWORD szWritten{ 0 };
+		::WriteFile(
+
+			_In_ hFile,
+			_In_ ucBuffer,
+			_In_ szBuffer,
+			_Out_ &szWritten,
+			_Inout_opt_ nullptr
+
+		);
+
+		::CloseHandle(
+
+			_In_ hFile
+
+		);
+
+		return szWritten == szBuffer;
+	}
+
+	inline std::pair<unsigned char*, SIZE_T> MapDiskPE(const std::string& strPath) {
+
+		auto hFile = ::CreateFileA(
+
+			_In_ strPath.c_str(),
+			_In_ GENERIC_READ,
+			_In_ FILE_SHARE_READ,
+			_In_opt_ nullptr,
+			_In_ OPEN_EXISTING,
+			_In_ FILE_ATTRIBUTE_NORMAL,
+			_In_opt_ nullptr
+
+		);
+
+		if (hFile == INVALID_HANDLE_VALUE) return { nullptr, 0 };
+
+		LARGE_INTEGER fileSize;
+		if (!::GetFileSizeEx(
+			
+			_In_ hFile,
+			_Out_ &fileSize
+		
+		) || fileSize.QuadPart == 0) {
+
+			::CloseHandle(
+				
+				_In_ hFile
+			
+			);
+
+			return { nullptr, 0 };
+		}
+
+		SIZE_T outSize = static_cast<SIZE_T>(fileSize.QuadPart);
+
+		HANDLE hMapping = ::CreateFileMappingA(
+
+			_In_ hFile,
+			_In_opt_ nullptr,
+			_In_ PAGE_READONLY,
+			_In_ 0,
+			_In_ 0,
+			_In_opt_ nullptr
+
+		);
+
+		if (!hMapping) {
+
+			::CloseHandle(
+				
+				_In_ hFile
+			
+			);
+
+			return { nullptr, 0 };
+		}
+
+		auto outData = static_cast<unsigned char*>(::MapViewOfFile(
+
+			_In_ hMapping,
+			_In_ FILE_MAP_READ,
+			_In_ 0,
+			_In_ 0,
+			_In_ 0
+
+		));
+
+		::CloseHandle(
+			
+			_In_ hMapping
+		
+		);
+
+		::CloseHandle(
+			
+			_In_ hFile
+		
+		);
+
+		if (!outData) return { nullptr, 0 };
+
+		return { outData, outSize };
 	}
 
 };
