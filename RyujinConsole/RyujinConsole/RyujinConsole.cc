@@ -17,7 +17,6 @@ auto main() -> int {
     config.m_isIatObfuscation = TRUE;
     std::vector<std::string> procsToObfuscate{
         "main",
-        "mainCRTStartup",
         "invoke_main",
         "sum",
         "__scrt_common_main",

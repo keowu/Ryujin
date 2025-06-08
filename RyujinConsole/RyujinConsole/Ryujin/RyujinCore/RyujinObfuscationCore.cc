@@ -1,8 +1,10 @@
 #include "RyujinObfuscationCore.hh"
 
-RyujinObfuscationCore::RyujinObfuscationCore(const RyujinObfuscatorConfig& config, const RyujinProcedure& proc) {
+RyujinObfuscationCore::RyujinObfuscationCore(const RyujinObfuscatorConfig& config, const RyujinProcedure& proc, uintptr_t ProcImageBase) {
 
 	m_proc = proc;
+	m_config = config;
+	m_ProcImageBase = ProcImageBase;
 
 	if (!extractUnusedRegisters())
 		throw std::exception("No registers avaliable for obfuscation...");
@@ -121,13 +123,128 @@ void RyujinObfuscationCore::addPaddingSpaces() {
 
 }
 
+void RyujinObfuscationCore::obfuscateIat() {
+
+	/*
+		Unexpected Ryujin requires at least one unused register in the current procedure to deobfuscate the IAT during runtime
+	*/
+	if (m_unusedRegisters.size() == 0) return;
+
+	auto findBlockId = [&](ZyanU8 uopcode, ZyanI64 value) -> std::pair<int, int> {
+
+		int block_id = 0;
+		int opcode_id = 0;
+
+		for (auto& block : m_proc.basic_blocks) {
+
+			opcode_id = 0;
+
+			for (auto& opcode : block.opcodes) {
+
+				auto data = opcode.data();
+				auto size = opcode.size();
+
+				if (data[0] == uopcode) { //0xFF ?
+
+					if (std::memcmp(&*(data + 2), &value, sizeof(uint32_t)) == 0) // Is it the same memory immediate?
+
+						return std::make_pair(block_id, opcode_id);
+				}
+
+				opcode_id++;
+			
+			}
+
+			block_id++;
+		}
+
+		return std::make_pair(-1, -1);
+	};
+
+	for (auto& block : m_obfuscated_bb) {
+
+		for (auto& instr : block.instructions) {
+
+			if (instr.instruction.info.meta.category == ZYDIS_CATEGORY_CALL && instr.instruction.operands->type == ZYDIS_OPERAND_TYPE_MEMORY) {
+
+				// Finding the block info related to the obfuscated opcode
+				auto block_info = findBlockId(instr.instruction.info.opcode, instr.instruction.operands->mem.disp.value);
+
+				// Call to an invalid IAT in the list of basic blocks
+				if (block_info.first == -1 || block_info.second == -1) continue;
+
+				// Retrieving the original opcodes where the opcodes have already been updated and obfuscated
+				auto& data = m_proc.basic_blocks[block_info.first].opcodes[block_info.second];
+
+				// Retrieving the "INSTRUCTION" from the basic block for our IAT call related to this context we're working with
+				auto orInstr = m_proc.basic_blocks[block_info.first].instructions.back(); // A call [IAT] will always be the last entry
+
+				/*
+					Let's calculate the IAT address that stores the resolved address for the given CALL
+				*/
+				// Calculating the VA of the next instruction after the "CALL" to the IAT in the original section
+				const uintptr_t next_instruction_address = orInstr.addressofinstruction + orInstr.instruction.info.length;
+
+				// Calculating the target address of the IAT using the memory immediate from the original instruction
+				const uint32_t iat_target_rva = (next_instruction_address + orInstr.instruction.operands->mem.disp.value) - m_ProcImageBase;
+
+				// A new vector to store our corrected IAT
+				std::vector<ZyanU8> new_iat_call;
+
+				unsigned char pebRecoverModuleBase[24]{
+					0x65, 0x48, 0x8B, 0x04, 0x25, 0x60, 0x00, 0x00, 0x00, // mov rax, gs:60h
+					0x48, 0x8B, 0x40, 0x10, // mov rax, qword ptr ds:[rax+0x10]
+					0x48, 0x05, 0x00, 0x00, 0x00, 0x00, // add     rax, 22228h
+					0x48, 0x8B, 0x00, //mov rax, qword ptr ds:[rax] -> Recover the IAT jump value stored in the data segment
+					0xFF, 0xD0//call rax
+				};
+
+				std::memcpy(&*(pebRecoverModuleBase + 15), &iat_target_rva, sizeof(uint32_t));
+
+				new_iat_call.insert(new_iat_call.end(), std::begin(pebRecoverModuleBase), std::end(pebRecoverModuleBase));
+				
+				// Replacing opcodes of the call in question with the new ones
+				data.assign(new_iat_call.begin(), new_iat_call.end());
+
+				std::printf("[OK] Obfuscating IAT CALL: %s\n", instr.instruction.text);
+
+			}
+
+		}
+
+	}
+
+	return;
+}
+
+void RyujinObfuscationCore::updateBasicBlocksContext() {
+
+	auto new_obfuscated_opcodes = getProcessedProc().getUpdateOpcodes();
+	auto bb = new RyujinBasicBlockerBuilder(ZYDIS_MACHINE_MODE_LONG_64, ZydisStackWidth_::ZYDIS_STACK_WIDTH_64);
+	m_obfuscated_bb = bb->createBasicBlocks(new_obfuscated_opcodes.data(), static_cast<size_t>(new_obfuscated_opcodes.size()), m_proc.address);
+
+}
+
 BOOL RyujinObfuscationCore::Run() {
 
 	//Add padding spaces
 	addPaddingSpaces();
 
+	//Update basic blocks view based on the new obfuscated 
+	this->updateBasicBlocksContext();
+
+	//Obfuscate IAT for the configured procedures
+	if (m_config.m_isIatObfuscation) {
+
+		//First obfuscate IAT
+		obfuscateIat();
+
+		//Update our basic blocks context to rely 1-1 for the new obfuscated opcodes.
+		this->updateBasicBlocksContext();
+
+	}
+
 	/*
-	if (config.m_isIatObfuscation) todoAction();
 
 	if (config.m_isVirtualized) todoAction();
 	if (config.m_isJunkCode) todoAction();
@@ -258,7 +375,7 @@ void RyujinObfuscationCore::applyRelocationFixupsToInstructions(uintptr_t imageB
 
 			} 
 			//Fixing all Call to a memory(IAT) values from our obfuscated opcodes -> CALL [MEMORY]
-			else if (instruction.instruction.info.meta.category == ZYDIS_CATEGORY_CALL && instruction.instruction.operands->type == ZYDIS_OPERAND_TYPE_MEMORY) {
+			else if (instruction.instruction.info.meta.category == ZYDIS_CATEGORY_CALL && instruction.instruction.operands->type == ZYDIS_OPERAND_TYPE_MEMORY && !m_config.m_isIatObfuscation) {
 
 				// References for the vector's data and size with the obfuscated opcodes
 				auto size = new_opcodes.size();

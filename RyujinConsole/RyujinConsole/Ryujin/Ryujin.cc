@@ -136,7 +136,7 @@ bool Ryujin::run(const RyujinObfuscatorConfig& config) {
 		proc.basic_blocks = rybb.createBasicBlocks(ucOpcodes, proc.size, proc.address);
 
 		//Is time to obfuscate ?
-		RyujinObfuscationCore obc(config, proc);
+		RyujinObfuscationCore obc(config, proc, reinterpret_cast<uintptr_t>(m_mappedPE.get()));
 		obc.Run();
 
 		//TODO: Custom passes support
