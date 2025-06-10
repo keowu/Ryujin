@@ -26,8 +26,6 @@ BOOL RyujinObfuscationCore::extractUnusedRegisters() {
 			ZYDIS_REGISTER_RCX,
 			ZYDIS_REGISTER_RDX,
 			ZYDIS_REGISTER_RBX,
-			ZYDIS_REGISTER_RSP,
-			ZYDIS_REGISTER_RBP,
 			ZYDIS_REGISTER_RSI,
 			ZYDIS_REGISTER_RDI,
 			ZYDIS_REGISTER_R8,
@@ -319,254 +317,37 @@ void RyujinObfuscationCore::insertJunkCode() {
 					std::uniform_int_distribution<uint32_t> dist(0, 0xFFFF);
 					auto random_value = dist(gen);
 
-					// Each free register has its own junk code (todo: this should be random and generated with some algorithm)
-					switch (reg) {
+					/*
+						Converting ZydisRegister to GP Register based on it's own ID.
+					*/
+					// Only x64 registers
+					if (ZydisRegisterGetClass(reg) != ZYDIS_REGCLASS_GPR64) continue;
+					
+					// Converting ZydisRegister to GB Register Index
+					auto idx = ZydisRegisterGetId(reg);
+					
+					// Ignore stack unused registers, if the feature for extracting unused register fail
+					if (idx == 4 /*RSP*/ || idx == 5 /*RBP*/) continue;
 
-						case ZYDIS_REGISTER_RAX: {
+					// Converting GB Register Index to a GB Register
+					auto regx = a.gpz(uint32_t(idx));
 
-							// Junk Code Entry
-							a.push(asmjit::x86::rax);
-							a.pushf();
-							a.mov(asmjit::x86::rax, 0);
+					/*
+						Gerando Junk Code instructions de maneira randomica
+					*/
+					// Todo: Implementar algoritmo para gerar junk code randomico
+					a.push(regx);
+					a.pushf();
 
-							a.xor_(asmjit::x86::rax, random_value);
-							a.inc(asmjit::x86::rax);
-							a.dec(asmjit::x86::rax);
-							a.add(asmjit::x86::rax, random_value);
-							a.sub(asmjit::x86::rax, random_value);
+					a.xor_(regx, random_value);
+					a.inc(regx);
+					a.dec(regx);
+					a.add(regx, random_value);
+					a.sub(regx, random_value);
 
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::rax);
-
-							break;
-
-						}
-						case ZYDIS_REGISTER_RBX: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::rbx);
-							a.pushf();
-							a.mov(asmjit::x86::rbx, 0);
-
-							a.rol(asmjit::x86::rbx, random_value);
-							a.ror(asmjit::x86::rbx, random_value);
-							a.xchg(asmjit::x86::rbx, asmjit::x86::rbx);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::rbx);
-							break;
-
-						}
-						case ZYDIS_REGISTER_RCX: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::rcx);
-							a.pushf();
-							a.mov(asmjit::x86::rcx, 0);
-
-							a.mov(asmjit::x86::rcx, random_value);
-							a.add(asmjit::x86::rcx, random_value);
-							a.mov(asmjit::x86::rcx, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::rcx);
-							break;
-
-						}
-						case ZYDIS_REGISTER_RDX: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::rdx);
-							a.pushf();
-							a.mov(asmjit::x86::rdx, 0);
-
-							a.add(asmjit::x86::rdx, random_value);
-							a.shr(asmjit::x86::rdx, random_value);
-							a.shl(asmjit::x86::rdx, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::rdx);
-							break;
-
-						}
-						case ZYDIS_REGISTER_RSI: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::rsi);
-							a.pushf();
-							a.mov(asmjit::x86::rsi, 0);
-
-							a.mov(asmjit::x86::rsi, random_value);
-							a.not_(asmjit::x86::rsi);
-							a.not_(asmjit::x86::rsi);
-							a.add(asmjit::x86::rsi, random_value);
-							a.sub(asmjit::x86::rsi, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::rsi);
-							break;
-
-						}
-						case ZYDIS_REGISTER_RDI: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::rdi);
-							a.pushf();
-							a.mov(asmjit::x86::rdi, 0);
-
-							a.mov(asmjit::x86::rdi, random_value);
-							a.xor_(asmjit::x86::rdi, asmjit::x86::rdi);
-							a.add(asmjit::x86::rdi, random_value);
-							a.sub(asmjit::x86::rdi, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::rdi);
-							break;
-
-						}
-						case ZYDIS_REGISTER_R8: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::r8);
-							a.pushf();
-							a.mov(asmjit::x86::r8, 0);
-
-							a.xor_(asmjit::x86::r8, asmjit::x86::r8);
-							a.mov(asmjit::x86::r8, random_value);
-							a.or_(asmjit::x86::r8, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::r8);
-							break;
-
-						}
-						case ZYDIS_REGISTER_R9: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::r9);
-							a.pushf();
-							a.mov(asmjit::x86::r9, 0);
-		
-							a.shr(asmjit::x86::r9, random_value);
-							a.shl(asmjit::x86::r9, random_value);
-							a.add(asmjit::x86::r9, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::r9);
-							break;
-
-						}
-						case ZYDIS_REGISTER_R10: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::r10);
-							a.pushf();
-							a.mov(asmjit::x86::r10, 0);
-
-							a.mov(asmjit::x86::r10, random_value);
-							a.imul(asmjit::x86::r10, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::r10);
-							break;
-
-						}
-						case ZYDIS_REGISTER_R11: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::r11);
-							a.pushf();
-							a.mov(asmjit::x86::r11, 0);
-
-							a.inc(asmjit::x86::r11);
-							a.mov(asmjit::x86::r11, random_value);
-							a.dec(asmjit::x86::r11);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::r11);
-							break;
-
-						}
-						case ZYDIS_REGISTER_R12: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::r12);
-							a.pushf();
-							a.mov(asmjit::x86::r12, 0);
-
-							a.add(asmjit::x86::r12, random_value);
-							a.sub(asmjit::x86::r12, random_value);
-							a.mov(asmjit::x86::r12, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::r12);
-							break;
-
-						}
-						case ZYDIS_REGISTER_R13: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::r13);
-							a.pushf();
-							a.mov(asmjit::x86::r13, 0);
-
-							a.mov(asmjit::x86::r13, random_value);
-							a.xor_(asmjit::x86::r13, random_value);
-							a.add(asmjit::x86::r13, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::r13);
-							break;
-						}
-						case ZYDIS_REGISTER_R14: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::r14);
-							a.pushf();
-							a.mov(asmjit::x86::r14, 0);
-
-							a.xor_(asmjit::x86::r14, random_value);
-							a.xor_(asmjit::x86::r14, random_value);
-							a.add(asmjit::x86::r14, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::r14);
-							break;
-
-						}
-						case ZYDIS_REGISTER_R15: {
-
-							// Junk Code Entry
-							a.push(asmjit::x86::r15);
-							a.pushf();
-							a.mov(asmjit::x86::r15, 0);
-
-							a.add(asmjit::x86::r15, random_value);
-							a.add(asmjit::x86::r15, random_value);
-							a.sub(asmjit::x86::r15, random_value);
-							a.xor_(asmjit::x86::r15, random_value);
-
-							// Junk Code Out
-							a.popf();
-							a.pop(asmjit::x86::r15);
-							break;
-
-						}
-						default: break;
-					}
+					// Junk Code Out
+					a.popf();
+					a.pop(regx);
 
 				}
 
