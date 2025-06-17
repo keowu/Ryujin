@@ -440,7 +440,9 @@ void RyujinObfuscationCore::insertVirtualization() {
 	// É uma instrução candidata a ser virtualizada pela minivm ??
 	auto isValidToSRyujinMiniVm = [&](RyujinInstruction instr) {
 
-		return instr.instruction.operands[0].type == ZYDIS_OPERAND_TYPE_REGISTER && instr.instruction.operands[1].type == ZYDIS_OPERAND_TYPE_IMMEDIATE;
+		return instr.instruction.operands[0].type == ZYDIS_OPERAND_TYPE_REGISTER && instr.instruction.operands[1].type == ZYDIS_OPERAND_TYPE_IMMEDIATE &&
+			//Ignorando registradores e operações de stack
+			(instr.instruction.operands[0].reg.value != ZYDIS_REGISTER_RSP && instr.instruction.operands[0].reg.value != ZYDIS_REGISTER_RBP);
 	};
 
 	// Vamos mapear o registrador do Zydis para o ASMJIT
@@ -766,8 +768,13 @@ void RyujinObfuscationCore::insertVirtualization() {
 				asmjit::x86::Assembler a(&code);
 
 				a.push(asmjit::x86::rcx);
-				a.mov(asmjit::x86::rcx, translateToMiniVmBytecode(instr.instruction.operands[0].reg.value, opType, instr.instruction.operands[1].imm.value.u));
-				a.mov(asmjit::x86::rax, 0x8888888888888888); // Endereço a ser substituido pelo endereço da nossa minivm
+				a.mov(asmjit::x86::rcx, translateToMiniVmBytecode(instr.instruction.operands[0].reg.value, opType, instr.instruction.operands[1].imm.value.u)); //TODO: e se o reg ex: rax já tiver uma valor para um add, devemos armazenar rax também ?
+				a.emit(asmjit::x86::Inst::kIdRdgsbase, asmjit::x86::rax);
+				a.add(asmjit::x86::rax, 0x60);
+				a.mov(asmjit::x86::rax, asmjit::x86::ptr(asmjit::x86::rax));
+				a.add(asmjit::x86::rax, 0x10);
+				a.mov(asmjit::x86::rax, asmjit::x86::ptr(asmjit::x86::rax));
+				a.add(asmjit::x86::rax, asmjit::imm(0x88));
 				a.call(asmjit::x86::rax);
 				a.mov(mapZydisToAsmjitGp(instr.instruction.operands[0].reg.value), asmjit::x86::rax);
 				a.pop(asmjit::x86::rcx);
@@ -1139,6 +1146,25 @@ void RyujinObfuscationCore::applyRelocationFixupsToInstructions(uintptr_t imageB
 		//Increment block index
 		block_id++;
 
+	}
+
+}
+
+void RyujinObfuscationCore::InsertMiniVmEnterProcedureAddress(uintptr_t imageBase, uintptr_t virtualAddress, std::vector<unsigned char>& new_opcodes) {
+
+	//Inserting Ryujin MiniVm Address on each vm entry reference
+	if (m_config.m_isVirtualized) {
+		auto size = new_opcodes.size();
+		auto data = new_opcodes.data();
+
+		unsigned char ucSignature[]{ 0x48, 0x05, 0x88, 0x00, 0x00, 0x00 };
+
+		for (auto i = 0; i < size; i++)
+			if (std::memcmp(&*(data + i), ucSignature, 6) == 0) {
+				std::printf("FIND!!\n");
+				std::memset(&*(data + i + 2), 0, 4);
+				std::memcpy(&*(data + i + 2), &virtualAddress, sizeof(uint32_t));
+			}
 	}
 
 }

@@ -11,17 +11,17 @@ auto main() -> int {
 
     RyujinObfuscatorConfig config;
     config.m_isIgnoreOriginalCodeRemove = FALSE;
-    config.m_isJunkCode = FALSE;
+    config.m_isJunkCode = TRUE;
     config.m_isRandomSection = FALSE;
     config.m_isVirtualized = TRUE;
     config.m_isIatObfuscation = TRUE;
     config.m_isEncryptObfuscatedCode = FALSE;
     std::vector<std::string> procsToObfuscate{
-        //"main"
-        //"invoke_main",
-        "sum"
-        // "__scrt_common_main",
-       // "j___security_init_cookie"
+        "sum",
+        "main",
+        "invoke_main"
+        "__scrt_common_main",
+        "j___security_init_cookie"
     };
     config.m_strProceduresToObfuscate.assign(procsToObfuscate.begin(), procsToObfuscate.end());
 

@@ -67,6 +67,7 @@ public:
 	RyujinObfuscationCore(const RyujinObfuscatorConfig& config, const RyujinProcedure& proc, uintptr_t ProcImageBase);
 	void applyRelocationFixupsToInstructions(uintptr_t imageBase, DWORD virtualAddress, std::vector<unsigned char>& new_opcodes);
 	void removeOldOpcodeRedirect(uintptr_t newMappedPE, std::size_t szMapped, uintptr_t newObfuscatedAddress, bool isIgnoreOriginalCodeRemove = false);
+	void InsertMiniVmEnterProcedureAddress(uintptr_t imageBase, uintptr_t virtualAddress, std::vector<unsigned char>& new_opcodes);
 	BOOL Run();
 	RyujinProcedure getProcessedProc();
 	~RyujinObfuscationCore();
