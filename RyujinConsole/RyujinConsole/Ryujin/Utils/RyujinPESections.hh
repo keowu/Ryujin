@@ -7,6 +7,7 @@
 #include "RyujinUtils.hh"
 
 #define ALIGN_UP(value, alignment) ((value + alignment - 1) & ~(alignment - 1))
+#define JACKPOTNUMBER 0x777
 
 class RyujinPESections {
 

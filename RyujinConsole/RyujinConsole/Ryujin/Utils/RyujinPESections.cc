@@ -69,7 +69,15 @@ BOOL RyujinPESections::AddNewSection(const std::string& strInputFilePath, char c
 		m_ntHeader->OptionalHeader.FileAlignment
 	);
 
-	m_newSection.Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
+	m_newSection.PointerToRelocations = JACKPOTNUMBER;
+
+	m_newSection.NumberOfRelocations = JACKPOTNUMBER;
+
+	m_newSection.PointerToLinenumbers = JACKPOTNUMBER;
+
+	m_newSection.NumberOfLinenumbers = JACKPOTNUMBER;
+
+	m_newSection.Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE;
 
 	return TRUE;
 }

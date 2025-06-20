@@ -15,7 +15,7 @@ auto main() -> int {
     config.m_isRandomSection = FALSE;
     config.m_isVirtualized = TRUE;
     config.m_isIatObfuscation = TRUE;
-    config.m_isEncryptObfuscatedCode = FALSE;
+    config.m_isEncryptObfuscatedCode = TRUE;
     std::vector<std::string> procsToObfuscate{
         "sum",
         "sub",
