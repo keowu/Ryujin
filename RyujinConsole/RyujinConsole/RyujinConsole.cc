@@ -29,7 +29,7 @@ Options:
   --help                    Show this help message
 
 In Action Usage Example:
-    RyujinConsole.exe --input C:\\Users\\Keowu\\Documents\\GitHub\\Ryujin\\compiled\\release\\DemoObfuscation.exe --pdb C:\\Users\\Keowu\\Documents\\GitHub\\Ryujin\\compiled\\release\\RyujinConsole.pdb --output C:\\Users\\Keowu\\Documents\\GitHub\\Ryujin\\compiled\\release\\DemoObfuscation.ryujin.exe --virtualize --junk --encrypt --procs main,sub,subadd,sum,invoke_main,__scrt_common_main,j___security_init_cookie
+    RyujinConsole.exe --input C:\\Users\\Keowu\\Documents\\GitHub\\Ryujin\\compiled\\release\\DemoObfuscation.exe --pdb C:\\Users\\Keowu\\Documents\\GitHub\\Ryujin\\compiled\\release\\RyujinConsole.pdb --output C:\\Users\\Keowu\\Documents\\GitHub\\Ryujin\\compiled\\release\\DemoObfuscation.ryujin.exe --virtualize --junk --encrypt --AntiDebug --troll --procs main,sub,subadd,sum,invoke_main,__scrt_common_main,j___security_init_cookie
 
 )";
 
@@ -84,6 +84,8 @@ auto main(int argc, char* argv[]) -> int {
     config.m_isVirtualized = has_flag(args, "--virtualize");
     config.m_isIatObfuscation = has_flag(args, "--iat");
     config.m_isEncryptObfuscatedCode = has_flag(args, "--encrypt");
+    config.m_isTrollRerversers = has_flag(args, "--troll");
+    config.m_isAntiDebug = has_flag(args, "--AntiDebug");
 
     std::vector<std::string> procsToObfuscate;
     if (has_flag(args, "--procs")) {

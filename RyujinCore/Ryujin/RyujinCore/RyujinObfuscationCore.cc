@@ -838,6 +838,45 @@ void RyujinObfuscationCore::insertVirtualization() {
 
 }
 
+void RyujinObfuscationCore::insertAntiDebug() {
+
+	BOOL isInserted{ FALSE };
+
+	for (auto& block : m_proc.basic_blocks) {
+
+		for (auto& instr : block.instructions) {
+
+			if (!isInserted) {
+
+				// 1º Inserir a stub que vai carregar o shellcode via stack
+				// 2º usar virtual alloc
+				// 3º criar uma thread escondida do debugger para executar o shellcode com o antidebug ou antidebug + trollreversers
+				// ACESSAR PEB RECUPERAR ESSES MODULOS MANUALMENTE ? sad. mas é parecido como o Themida e suas detecções funcionam.
+
+				if (this->m_config.m_isTrollRerversers) {
+
+					// IstrollReversers é o antidebug convencional mas com a capacidade de trigar tela azul via hard error
+
+					std::printf("Run m_isAntiDebug + m_isTrollRerversers\n");
+
+				}
+				else {
+
+					// Is Antidebug é o antidebug convencional que só encerrara a execução completa do binário protegido
+				
+					std::printf("Run m_isAntiDebug\n");
+				
+				}
+
+				isInserted = TRUE;
+			}
+
+		}
+	
+	}
+
+}
+
 void RyujinObfuscationCore::updateBasicBlocksContext() {
 
 	auto new_obfuscated_opcodes = getProcessedProc().getUpdateOpcodes();
@@ -853,6 +892,16 @@ BOOL RyujinObfuscationCore::Run() {
 
 	//Update basic blocks view based on the new obfuscated 
 	this->updateBasicBlocksContext();
+
+	if (m_config.m_isAntiDebug) {
+
+		// Insert AntiDebug
+		this->insertAntiDebug();
+
+		// Update our basic blocks context to rela 1-1 for the new obfuscated opcodes.
+		this->updateBasicBlocksContext();
+
+	}
 
 	if (m_config.m_isVirtualized) {
 
