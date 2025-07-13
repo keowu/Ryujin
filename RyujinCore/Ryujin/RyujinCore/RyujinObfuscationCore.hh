@@ -30,6 +30,7 @@ private:
 	void insertJunkCode();
 	void insertVirtualization();
 	void insertAntiDebug();
+	void insertAntiDump();
 	std::vector<uint8_t> fix_branch_near_far_short(uint8_t original_opcode, uint64_t jmp_address, uint64_t target_address);
 	uint32_t findOpcodeOffset(const uint8_t* data, size_t dataSize, const void* opcode, size_t opcodeSize);
 
@@ -69,7 +70,7 @@ public:
 	void applyRelocationFixupsToInstructions(uintptr_t imageBase, DWORD virtualAddress, std::vector<unsigned char>& new_opcodes);
 	void removeOldOpcodeRedirect(uintptr_t newMappedPE, std::size_t szMapped, uintptr_t newObfuscatedAddress, bool isIgnoreOriginalCodeRemove = false);
 	void InsertMiniVmEnterProcedureAddress(uintptr_t imageBase, uintptr_t virtualAddress, std::vector<unsigned char>& new_opcodes);
-	BOOL Run();
+	BOOL Run(bool& RyujinRunOncePass);
 	RyujinProcedure getProcessedProc();
 	~RyujinObfuscationCore();
 

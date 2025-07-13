@@ -199,6 +199,13 @@ bool RyujinApp::OnInit() {
 
     );
 
+    m_isAntiDump = DrawnStyledCheckbox(
+
+        panel,
+        "AntiDump"
+
+    );
+
     optionsSizer->Add(
         
         m_virtualize
@@ -237,6 +244,11 @@ bool RyujinApp::OnInit() {
     optionsSizer->Add(
 
         m_isAntiDebugNormal
+
+    );
+    optionsSizer->Add(
+
+        m_isAntiDump
 
     );
     optionsBox->Add(
@@ -684,6 +696,7 @@ auto RyujinApp::BindRunEvent(wxFrame* frame) -> void {
             core.m_isJunkCode = m_junk->IsChecked();
             core.m_isRandomSection = m_randomSection->IsChecked();
             core.m_isVirtualized = m_virtualize->IsChecked();
+            core.m_isAntiDump = m_isAntiDump->IsChecked();
 
             if (m_isAntiDebugWithTroll->IsChecked()) {
 

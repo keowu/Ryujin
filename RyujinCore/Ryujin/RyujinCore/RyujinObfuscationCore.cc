@@ -1602,6 +1602,34 @@ void RyujinObfuscationCore::insertAntiDebug() {
 
 }
 
+void RyujinObfuscationCore::insertAntiDump() {
+	
+	BOOL isInserted{ FALSE };
+
+	for (auto& block : m_proc.basic_blocks) {
+
+		for (auto& instr : block.instructions) {
+
+			if (isInserted) break;
+
+			if (!isInserted) {
+
+				auto block_info = findBlockId(instr.instruction.info.opcode, instr.instruction.operands[1].imm.value.u, 2, sizeof(unsigned char));
+
+				if (block_info.first == -1 || block_info.second == -1) continue;
+
+				auto& data = m_proc.basic_blocks[block_info.first].opcodes[block_info.second];
+
+				std::printf("RyujinObfuscationCore::insertAntiDump\n");
+
+				isInserted = TRUE;
+
+			}
+		}
+	}
+
+}
+
 void RyujinObfuscationCore::updateBasicBlocksContext() {
 
 	auto new_obfuscated_opcodes = getProcessedProc().getUpdateOpcodes();
@@ -1610,10 +1638,21 @@ void RyujinObfuscationCore::updateBasicBlocksContext() {
 
 }
 
-BOOL RyujinObfuscationCore::Run() {
+BOOL RyujinObfuscationCore::Run(bool& RyujinRunOncePass) {
 
 	//Add padding spaces
 	addPaddingSpaces();
+
+	/*
+		RyujinRunOncePass only run once for the first function candidate to obfuscation.
+		this is the better place to put unique logic code that is high volatily.
+	*/
+	if (RyujinRunOncePass) {
+
+		this->insertAntiDump();
+
+		RyujinRunOncePass = FALSE;
+	}
 
 	//Update basic blocks view based on the new obfuscated 
 	this->updateBasicBlocksContext();

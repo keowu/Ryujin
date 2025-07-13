@@ -22,6 +22,7 @@ private:
     wxCheckBox* m_ignoreOriginalCodeRemove = nullptr;
     wxCheckBox* m_isAntiDebugWithTroll = nullptr;
     wxCheckBox* m_isAntiDebugNormal = nullptr;
+    wxCheckBox* m_isAntiDump = nullptr;
     wxListBox* m_procList = nullptr;
     wxGauge* m_progress = nullptr;
 

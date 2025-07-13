@@ -13,10 +13,10 @@
 - Random Section naming(Default name: Ryujin)
 - Mathematical Operators Virtualization(aka: Ryūjin MiniVM)
 - Obfuscated code Encryption(Using TeaDelKew Algorithm)
-- Anti-Debug User + Kernel(Planned)
-- Anti-Dump(Planned)
+- Anti-Debug User + Kernel
+- Anti-Dump
 - Anti-Disassembly(Planned)
-- Troll Reversers(Exclusive Planned)
+- Troll Reversers(Exclusive)
 
 ---
 

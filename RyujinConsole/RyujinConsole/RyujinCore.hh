@@ -22,6 +22,7 @@ public:
     bool m_isEncryptObfuscatedCode; // The user wants to encrypt all obfuscated code to avoid detection
     bool m_isAntiDebug; // The user wants to avoid debuggers use while running a binary protected by Ryujin
     bool m_isTrollRerversers; // The user wants to trick and use a special feature to troll reversers when their debugs be detected making they loose all the progress
+    bool m_isAntiDump; // Enable Anti Dump technic for Ryujin protected binary
     RyujinObfuscatorProcs m_strProceduresToObfuscate; // Names of the procedures to obfuscate
     std::vector<std::string> m_strdProceduresToObfuscate; // Names of the procedures to obfuscate
 

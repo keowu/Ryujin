@@ -94,8 +94,8 @@ bool Ryujin::run(const RyujinObfuscatorConfig& config) {
 		return FALSE;
 	}
 
+	bool RyujinRunOncePass{ TRUE };
 	std::vector<RyujinObfuscationCore> processed_procs;
-
 	for (auto& proc : m_ryujinProcedures) {
 
 		auto it = std::find(config.m_strdProceduresToObfuscate.begin(), config.m_strdProceduresToObfuscate.end(), proc.name);
@@ -137,7 +137,7 @@ bool Ryujin::run(const RyujinObfuscatorConfig& config) {
 
 		//Is time to obfuscate ?
 		RyujinObfuscationCore obc(config, proc, reinterpret_cast<uintptr_t>(m_mappedPE.get()));
-		obc.Run();
+		obc.Run(RyujinRunOncePass);
 
 		//TODO: Custom passes support
 
