@@ -18,7 +18,7 @@
 - Anti-Debug User + Kernel
 - Troll Reversers(Exclusive)
 - Anti-Dump
-- Anti-Disassembly(Planned - **TODO**)
+- Anti-Disassembly + Anti-Decompiler
 - Custom Passes(Planned - **TODO**)
 
 ---
