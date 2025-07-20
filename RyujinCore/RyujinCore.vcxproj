@@ -188,6 +188,7 @@
     <ClInclude Include="Ryujin\Ryujin.hh" />
     <ClInclude Include="Ryujin\RyujinCore\BasicBlockerBuilder.hh" />
     <ClInclude Include="Ryujin\RyujinCore\RyujinObfuscationCore.hh" />
+    <ClInclude Include="Ryujin\Utils\RyujinCRC32Utils.hh" />
     <ClInclude Include="Ryujin\Utils\RyujinPESections.hh" />
     <ClInclude Include="Ryujin\Utils\RyujinUtils.hh" />
   </ItemGroup>
@@ -197,6 +198,7 @@
     <ClCompile Include="Ryujin\Ryujin.cc" />
     <ClCompile Include="Ryujin\RyujinCore\BasicBlockerBuilder.cc" />
     <ClCompile Include="Ryujin\RyujinCore\RyujinObfuscationCore.cc" />
+    <ClCompile Include="Ryujin\Utils\RyujinCRC32Utils.cc" />
     <ClCompile Include="Ryujin\Utils\RyujinPESections.cc" />
     <ClCompile Include="Ryujin\Utils\RyujinUtils.cc" />
   </ItemGroup>

@@ -63,6 +63,9 @@
     <ClInclude Include="RyujinCore.hh">
       <Filter>Ryujin</Filter>
     </ClInclude>
+    <ClInclude Include="Ryujin\Utils\RyujinCRC32Utils.hh">
+      <Filter>Ryujin\Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RyujinCore.cc">
@@ -85,6 +88,9 @@
     </ClCompile>
     <ClCompile Include="Ryujin\RyujinCore\RyujinObfuscationCore.cc">
       <Filter>Ryujin\RyujinCore</Filter>
+    </ClCompile>
+    <ClCompile Include="Ryujin\Utils\RyujinCRC32Utils.cc">
+      <Filter>Ryujin\Utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

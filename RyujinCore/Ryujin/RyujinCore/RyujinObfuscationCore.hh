@@ -12,6 +12,7 @@
 #include "../Models/RyujinProcedure.hh"
 #include "../Models/RyujinObfuscatorConfig.hh"
 #include "../RyujinCore/BasicBlockerBuilder.hh"
+#include "../Utils/RyujinCRC32Utils.hh"
 
 class RyujinObfuscationCore {
 
@@ -31,6 +32,7 @@ private:
 	void insertVirtualization();
 	void insertAntiDebug();
 	void insertAntiDump();
+	void insertMemoryProtection();
 	void insertBreakDecompilers(asmjit::x86::Assembler& a);
 	std::vector<uint8_t> fix_branch_near_far_short(uint8_t original_opcode, uint64_t jmp_address, uint64_t target_address);
 	uint32_t findOpcodeOffset(const uint8_t* data, size_t dataSize, const void* opcode, size_t opcodeSize);

@@ -1941,6 +1941,15 @@ void RyujinObfuscationCore::insertAntiDump() {
 
 }
 
+void RyujinObfuscationCore::insertMemoryProtection() {
+
+	unsigned char ucTest[]{ 0xDE, 0xAD, 0xBE, 0xEF };
+
+	RyujinCRC32Utils crcTest;
+	std::printf("RyujinObfuscationCore::insertMemoryProtection.TEST: 0x%X\n", crcTest.crc32(ucTest, 4));
+
+}
+
 void RyujinObfuscationCore::updateBasicBlocksContext() {
 
 	auto new_obfuscated_opcodes = getProcessedProc().getUpdateOpcodes();
@@ -1992,7 +2001,11 @@ BOOL RyujinObfuscationCore::Run(bool& RyujinRunOncePass) {
 		// Update our basic blocks context to rela 1-1 for the new obfuscated opcodes.
 		this->updateBasicBlocksContext();
 
+		//Insert stub for memory crc32 protection
+		this->insertMemoryProtection();
+
 		RyujinRunOncePass = FALSE;
+
 	}
 
 	//Update basic blocks view based on the new obfuscated 
