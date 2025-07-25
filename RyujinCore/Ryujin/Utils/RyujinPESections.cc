@@ -84,6 +84,11 @@ BOOL RyujinPESections::AddNewSection(const std::string& strInputFilePath, char c
 
 BOOL RyujinPESections::ProcessOpcodesNewSection(std::vector<unsigned char>& opcodeData) {
 
+	// Calculate ryujin section CRC for memory protection
+	m_newSection.PointerToLinenumbers = RyujinCRC32Utils::compute_crc(opcodeData.data(), opcodeData.size());
+	m_newSection.NumberOfLinenumbers = opcodeData.size();
+
+	// Continue the logic
 	m_newSection.Misc.VirtualSize = opcodeData.size();
 	m_newSection.SizeOfRawData = ALIGN_UP(opcodeData.size(), m_ntHeader->OptionalHeader.FileAlignment);
 

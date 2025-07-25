@@ -12,7 +12,6 @@
 #include "../Models/RyujinProcedure.hh"
 #include "../Models/RyujinObfuscatorConfig.hh"
 #include "../RyujinCore/BasicBlockerBuilder.hh"
-#include "../Utils/RyujinCRC32Utils.hh"
 
 class RyujinObfuscationCore {
 
