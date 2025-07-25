@@ -206,6 +206,13 @@ bool RyujinApp::OnInit() {
 
     );
 
+    m_isMemoryProtection = DrawnStyledCheckbox(
+
+        panel,
+        "Memory Protection"
+
+    );
+
     optionsSizer->Add(
         
         m_virtualize
@@ -249,6 +256,11 @@ bool RyujinApp::OnInit() {
     optionsSizer->Add(
 
         m_isAntiDump
+
+    );
+    optionsSizer->Add(
+
+        m_isMemoryProtection
 
     );
     optionsBox->Add(
@@ -697,6 +709,7 @@ auto RyujinApp::BindRunEvent(wxFrame* frame) -> void {
             core.m_isRandomSection = m_randomSection->IsChecked();
             core.m_isVirtualized = m_virtualize->IsChecked();
             core.m_isAntiDump = m_isAntiDump->IsChecked();
+            core.m_isMemoryProtection = m_isMemoryProtection->IsChecked();
 
             if (m_isAntiDebugWithTroll->IsChecked()) {
 

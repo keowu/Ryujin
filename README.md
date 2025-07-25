@@ -19,7 +19,7 @@
 - Troll Reversers(Exclusive)
 - Anti-Dump
 - Anti-Disassembly + Anti-Decompiler
-- Memory Protection(CRC32 - Planned - **TODO**)
+- Memory Protection(CRC32)
 - Custom Passes(Planned - **TODO**)
 
 ---

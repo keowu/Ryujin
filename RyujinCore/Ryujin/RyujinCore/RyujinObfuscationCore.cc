@@ -1990,7 +1990,144 @@ void RyujinObfuscationCore::insertMemoryProtection() {
 				std::vector<unsigned char> memoryProtectionShellcode = {
 				
 					/*
-						TODO
+						#pragma optimize("", off)
+						__declspec(noinline) __declspec(safebuffers) void RyujinMemoryCrc32Protection() {
+						
+							#ifdef _M_X64
+							auto* peb = reinterpret_cast<PEB*>(__readgsqword(0x60));
+							#else
+							auto* peb = reinterpret_cast<PEB*>(__readfsdword(0x30));
+							#endif
+						
+							if (!peb || !peb->ImageBaseAddress || !peb->Ldr) return;
+						
+							auto* base = reinterpret_cast<BYTE*>(peb->ImageBaseAddress);
+							auto* dos = reinterpret_cast<IMAGE_DOS_HEADER*>(base);
+						
+							if (dos->e_magic != IMAGE_DOS_SIGNATURE) return;
+						
+							auto* nt = reinterpret_cast<IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+							if (nt->Signature != IMAGE_NT_SIGNATURE) return;
+						
+							auto* section = IMAGE_FIRST_SECTION(nt);
+						
+							char ryujinName[8] { '.', 'R', 'y', 'u', 'j', 'i', 'n', 0 };
+						
+							IMAGE_SECTION_HEADER* ryujin = nullptr;
+							for (int i = 0; i < nt->FileHeader.NumberOfSections; ++i, ++section) {
+						
+								bool isMatch = true;
+						
+								for (int j = 0; j < 8; ++j)
+									if (section->Name[j] != ryujinName[j]) {
+						
+										isMatch = false;
+						
+										break;
+									}
+						
+								if (isMatch) {
+						
+									ryujin = section;
+						
+									break;
+								}
+						
+							}
+						
+							if (!ryujin) return;
+						
+							wchar_t ntdllStr[] { 'n','t','d','l','l','.','d','l','l', 0 };
+							char ntTermStr[] { 'N','t','T','e','r','m','i','n','a','t','e','P','r','o','c','e','s','s', 0 };
+						
+							BYTE* ntdllBase = nullptr;
+							for (auto* link = peb->Ldr->InMemoryOrderModuleList.Flink; link != &peb->Ldr->InMemoryOrderModuleList; link = link->Flink) {
+						
+								auto* entry = CONTAINING_RECORD(link, LDR_DATA_TABLE_ENTRY, InMemoryOrderLinks);
+						
+								if (!entry->BaseDllName.Buffer) continue;
+						
+								auto* modName = entry->BaseDllName.Buffer;
+								auto* target = ntdllStr;
+						
+								bool match = true;
+						
+								for (; *target && *modName; ++target, ++modName) {
+						
+									wchar_t ca = (*modName >= 'A' && *modName <= 'Z') ? *modName + 0x20 : *modName;
+									wchar_t cb = (*target >= 'A' && *target <= 'Z') ? *target + 0x20 : *target;
+									if (ca != cb) { match = false; break; }
+						
+								}
+						
+								if (match && !*target && !*modName) {
+						
+									ntdllBase = reinterpret_cast<BYTE*>(entry->DllBase);
+						
+									break;
+								}
+						
+							}
+						
+							if (!ntdllBase) return;
+						
+							auto* dosHdr = reinterpret_cast<IMAGE_DOS_HEADER*>(ntdllBase);
+							auto* ntHdr = reinterpret_cast<IMAGE_NT_HEADERS*>(ntdllBase + dosHdr->e_lfanew);
+							auto& dir = ntHdr->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+						
+							if (!dir.VirtualAddress) return;
+						
+							auto* exportDir = reinterpret_cast<IMAGE_EXPORT_DIRECTORY*>(ntdllBase + dir.VirtualAddress);
+							auto* names = reinterpret_cast<DWORD*>(ntdllBase + exportDir->AddressOfNames);
+							auto* ordinals = reinterpret_cast<WORD*>(ntdllBase + exportDir->AddressOfNameOrdinals);
+							auto* functions = reinterpret_cast<DWORD*>(ntdllBase + exportDir->AddressOfFunctions);
+						
+							NtTerminateProcess_t pNtTerminate = nullptr;
+						
+							for (DWORD i = 0; i < exportDir->NumberOfNames; ++i) {
+						
+								const char* fname = reinterpret_cast<const char*>(ntdllBase + names[i]);
+						
+								bool match = true;
+								for (int j = 0; ntTermStr[j] || fname[j]; ++j)
+									if (ntTermStr[j] != fname[j]) { match = false; break; }
+						
+								if (match) {
+						
+									pNtTerminate = reinterpret_cast<NtTerminateProcess_t>(
+										ntdllBase + functions[ordinals[i]]);
+						
+									break;
+								}
+						
+							}
+						
+							if (pNtTerminate) {
+						
+								const uint8_t* data = base + ryujin->VirtualAddress;
+						
+								uint32_t crc = 0xFFFFFFFF;
+								for (size_t i = 0; i < ryujin->NumberOfLinenumbers; ++i) {
+						
+									crc ^= data[i];
+						
+									for (int j = 0; j < 8; ++j) {
+										if (crc & 1)
+											crc = (crc >> 1) ^ 0xB0B0C400;
+										else
+											crc >>= 1;
+									}
+						
+								}
+						
+								auto crcvalue = crc ^ 0xFFFFFFFF;
+						
+								if (ryujin->PointerToLinenumbers != crcvalue)
+									pNtTerminate(reinterpret_cast<HANDLE>(-1), crcvalue);
+							}
+						
+						}
+						#pragma optimize("", on)
 					*/
 					0x48, 0x81, 0xEC, 0x58, 0x01, 0x00, 0x00, 0x65, 0x48, 0x8B, 0x04, 0x25,
 					0x60, 0x00, 0x00, 0x00, 0x48, 0x89, 0x84, 0x24, 0x80, 0x00, 0x00, 0x00,

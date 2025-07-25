@@ -24,6 +24,10 @@ Options:
   --iat                     Enable IAT obfuscation
   --random-section          Use random PE section
   --keep-original           Keep original code (don't remove it)
+  --AntiDebug               Inserts anti-debugging capabilities and terminates the protected binary if a debugger is detected.
+  --Troll                   Crashes the entire OS if a debugger is detected (requires --AntiDebug).
+  --AntiDump                Inserts anti-dump mechanisms that break the binary in memory, making dumps harder to analyze.
+  --MemoryProtection        Protects obfuscated code against in-memory or on-disk patching.
   --procs <comma,separated,names>  Procedures to obfuscate (default: main, invoke_main, ...)
 
   --help                    Show this help message
@@ -87,6 +91,7 @@ auto main(int argc, char* argv[]) -> int {
     config.m_isTrollRerversers = has_flag(args, "--troll");
     config.m_isAntiDebug = has_flag(args, "--AntiDebug");
     config.m_isAntiDump = has_flag(args, "--AntiDump");
+    config.m_isMemoryProtection = has_flag(args, "--MemoryProtection");
 
     if (has_flag(args, "--procs")) {
         auto rawList = args["--procs"];
