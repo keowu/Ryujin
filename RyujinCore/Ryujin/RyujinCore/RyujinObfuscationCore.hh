@@ -17,7 +17,7 @@ class RyujinObfuscationCore {
 
 private:
 	const int MAX_PADDING_SPACE_INSTR = 14;
-	const int MAX_JUNK_GENERATION_ITERATION = 8;
+	const int MAX_JUNK_GENERATION_ITERATION = 5; // TODO: Make this dynamic
 	std::vector<ZydisRegister> m_unusedRegisters;
 	std::vector<RyujinBasicBlock> m_obfuscated_bb;
 	uintptr_t m_ProcImageBase;
@@ -73,6 +73,7 @@ public:
 	void removeOldOpcodeRedirect(uintptr_t newMappedPE, std::size_t szMapped, uintptr_t newObfuscatedAddress, bool isIgnoreOriginalCodeRemove = false);
 	void InsertMiniVmEnterProcedureAddress(uintptr_t imageBase, uintptr_t virtualAddress, std::vector<unsigned char>& new_opcodes);
 	BOOL Run(bool& RyujinRunOncePass);
+	std::vector<ZyanU8> RunMiniVmObfuscation();
 	RyujinProcedure getProcessedProc();
 	~RyujinObfuscationCore();
 

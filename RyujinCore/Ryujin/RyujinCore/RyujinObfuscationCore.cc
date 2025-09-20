@@ -2583,6 +2583,203 @@ BOOL RyujinObfuscationCore::Run(bool& RyujinRunOncePass) {
 	return TRUE;
 }
 
+std::vector<ZyanU8> RyujinObfuscationCore::RunMiniVmObfuscation() {
+
+	// Copiando os basic blocks da MiniVm antes de ofusca-la e adicionar bytes padding..
+	auto origBlocks = m_proc.basic_blocks;
+	auto originalOpcodes = this->getProcessedProc().getUpdateOpcodes();
+
+	// Ofuscando e adicionando bytes paddings..
+	addPaddingSpaces();
+	
+	//mutateMiniVm();
+
+	// Redesenhando os basic blocks
+	this->updateBasicBlocksContext();
+
+	// Obtendo os opcodes novos ofuscados para podermos corrigir
+	auto newOpcodes = this->getProcessedProc().getUpdateOpcodes();
+
+	// Calculando quantas instruções temos antes de cada instruções nos Basic Blocks originais sem ofuscação
+	std::vector<size_t> instGlobalOffsets;
+	for (auto& blk : origBlocks) {
+
+		for (auto& inst : blk.instructions) {
+
+			size_t absOffset = blk.start_address + inst.addressofinstruction;
+			instGlobalOffsets.push_back(absOffset);
+
+		}
+
+	}
+
+	// Organizando os deslocamentos originais..
+	std::sort(instGlobalOffsets.begin(), instGlobalOffsets.end());
+
+	// Calculando as instruções antes de uma instrução inserida..
+	auto countInstructionsBefore = [&](size_t offset) {
+	
+		return static_cast<int>(std::distance(instGlobalOffsets.begin(), std::lower_bound(instGlobalOffsets.begin(), instGlobalOffsets.end(), offset)));
+	};
+
+	// Criando novos Basic Blocks com base nos opcodes devidamente ofuscados..
+	auto bb = new RyujinBasicBlockerBuilder(ZYDIS_MACHINE_MODE_LONG_64, ZydisStackWidth_::ZYDIS_STACK_WIDTH_64);
+	m_obfuscated_bb = bb->createBasicBlocks(newOpcodes.data(), newOpcodes.size(), 0);
+
+	// Lambda para vermos se o deslocamente cabe em um short..
+	auto fits_int8 = [](int32_t v) { 
+		
+		return v >= -128 && v <= 127;
+	};
+
+	// Salvando os opcodes originais sem ofuscação com base em um offset
+	auto read_original_byte = [&](size_t off, uint8_t fallback)->uint8_t {
+		
+		if (off < originalOpcodes.size()) return originalOpcodes[off];
+	
+		return fallback;
+	};
+
+	for (auto& block : origBlocks) {
+
+		for (auto& inst : block.instructions) {
+
+			// Filtrando apenas por instruções de banch condicional ou incondicional(JE, JZ... jmp...)..
+			if (!(inst.instruction.info.meta.category == ZYDIS_CATEGORY_COND_BR || inst.instruction.info.meta.category == ZYDIS_CATEGORY_UNCOND_BR)) continue;
+
+			// Calculando offset RIP relative para salto PIC da instrução..
+			size_t origJumpOffset = block.start_address + inst.addressofinstruction;
+			int64_t origDisp = inst.instruction.operands[0].imm.value.s;
+			size_t origTargetOffset = origJumpOffset + inst.instruction.info.length + origDisp;
+
+			// Contando quantas instruções temos antes de cada instrução. antes de depois da mesma para podermos calcular o offset correto da branch ser feita: E8 [AQUI]..
+			int instBeforeJump = countInstructionsBefore(origJumpOffset);
+			int instBeforeTarget = countInstructionsBefore(origTargetOffset);
+
+			// Calculando os novos offsets considerando o tamanho dos NOPS e JunkCode..
+			size_t newJumpOffset = origJumpOffset + instBeforeJump * MAX_PADDING_SPACE_INSTR;
+			size_t newTargetOffset = origTargetOffset + instBeforeTarget * MAX_PADDING_SPACE_INSTR;
+
+			// Lendo os bytes originais para podermos calcular o devido deslocamento e sincronizar os basic blocks..
+			uint8_t rawOpcode = read_original_byte(origJumpOffset, (uint8_t)inst.instruction.info.opcode);
+			uint8_t rawOpcodeSpecificWithIntelPrefix = read_original_byte(origJumpOffset + 1, 0); // Opcode real para caso a instrução tenha algum prefixo como o 0x0F(pode variar essa merda) etc
+
+			std::vector<uint8_t> opcodeBytes;
+			int dispSize = 0;   // 1 or 4
+			int32_t finalDisp = 0;
+
+			// Temos uma lógica customizada de correção para cada Opcode para garantir que nada seja quebrada quando formos patchar na instrução ofuscada...
+			if (inst.instruction.info.meta.category == ZYDIS_CATEGORY_UNCOND_BR) {
+				
+				// Lógica para saltos incondicionais..
+				if (rawOpcode == 0xEB) {
+
+					// Calculo para relocation short RIP-PIC: length = 2 (opcode + int8)
+					int32_t d = static_cast<int32_t>(static_cast<int64_t>(newTargetOffset) - (static_cast<int64_t>(newJumpOffset) + 2));
+					
+					if (fits_int8(d)) {
+
+						opcodeBytes.push_back(0xEB);
+						dispSize = 1;
+						finalDisp = d;
+
+					}
+					else {
+
+						opcodeBytes.push_back(0xE9);
+						dispSize = 4;
+						finalDisp = static_cast<int32_t>(static_cast<int64_t>(newTargetOffset) - (static_cast<int64_t>(newJumpOffset) + 5));
+
+					}
+
+				}
+				else if (rawOpcode == 0xE9) {
+
+					opcodeBytes.push_back(0xE9);
+					dispSize = 4;
+					finalDisp = static_cast<int32_t>(static_cast<int64_t>(newTargetOffset) - (static_cast<int64_t>(newJumpOffset) + 5));
+
+				}
+				else {
+
+					// fallback: Para preservar opcode original..
+					opcodeBytes.push_back(rawOpcode);
+					dispSize = 4;
+					finalDisp = static_cast<int32_t>(static_cast<int64_t>(newTargetOffset) - (static_cast<int64_t>(newJumpOffset) + static_cast<int>(opcodeBytes.size()) + 4));
+
+				}
+			}
+			else {
+
+				// Lógica para as branchs condicionais..
+				// Tem apenas dois algoritmos para eles RIP-PIC relative sendo o short (0x7x) => 2 bytes e o near (0F 8x) => 6 bytes.
+				if (rawOpcode >= 0x70 && rawOpcode <= 0x7F) {
+
+					// Calculando o short RIP-PIC
+					int32_t d = static_cast<int32_t>(static_cast<int64_t>(newTargetOffset) - (static_cast<int64_t>(newJumpOffset) + 2));
+					if (fits_int8(d)) {
+
+						opcodeBytes.push_back(rawOpcode);
+						dispSize = 1;
+						finalDisp = d;
+
+					}
+					else {
+
+						// Calculando a lógica para um near com prefixo como 0F 8x com base no rawOpcode recebido..
+						uint8_t op2 = (rawOpcode & 0x0F) + 0x80;
+						opcodeBytes.push_back(0x0F);
+						opcodeBytes.push_back(op2);
+						dispSize = 4;
+						finalDisp = static_cast<int32_t>(static_cast<int64_t>(newTargetOffset) - (static_cast<int64_t>(newJumpOffset) + 6));
+
+					}
+
+				}
+				else if (rawOpcode == 0x0F) {
+
+					// Calculando lógica customizada para o prefixo de salto com 0x0F
+					uint8_t second = rawOpcodeSpecificWithIntelPrefix;
+					
+					if (second == 0)
+						second = static_cast<uint8_t>((inst.instruction.operands[0].imm.value.u >> 8) & 0xFF);
+					
+					opcodeBytes.push_back(0x0F);
+					opcodeBytes.push_back(second);
+					dispSize = 4;
+					finalDisp = static_cast<int32_t>(static_cast<int64_t>(newTargetOffset) - (static_cast<int64_t>(newJumpOffset) + 6));
+
+				}
+				else {
+
+					// Fallback para condicionais inesperadas(se isso for usado para algo diferente no futuro, é claro)...
+					opcodeBytes.push_back(rawOpcode);
+					dispSize = 4;
+					finalDisp = static_cast<int32_t>(static_cast<int64_t>(newTargetOffset) - (static_cast<int64_t>(newJumpOffset) + static_cast<int>(opcodeBytes.size()) + 4));
+
+				}
+			}
+
+			// Compondo os novos opcodes..
+			std::vector<uint8_t> composed;
+			composed.insert(composed.end(), opcodeBytes.begin(), opcodeBytes.end());
+			if (dispSize == 1) 
+				composed.push_back(static_cast<uint8_t>(finalDisp & 0xFF));
+			else
+				for (int i = 0; i < 4; ++i) composed.push_back(static_cast<uint8_t>((finalDisp >> (8 * i)) & 0xFF));
+
+			if (newJumpOffset + composed.size() > newOpcodes.size()) 
+				continue;
+
+			// Escrevendo as novas instruções devidamente corrigidas..
+			std::memcpy(newOpcodes.data() + newJumpOffset, composed.data(), composed.size());
+		}
+	}
+
+	return newOpcodes;
+}
+
+
 uint32_t RyujinObfuscationCore::findOpcodeOffset(const uint8_t* data, size_t dataSize, const void* opcode, size_t opcodeSize) {
 
 	if (opcodeSize == 0 || dataSize < opcodeSize) return 0;

@@ -2285,14 +2285,15 @@ bool Ryujin::run(const RyujinObfuscatorConfig& config, const std::shared_ptr<Ryu
 		proc.name = "MiniVMStub";
 		proc.address = 0x00;
 		proc.size = miniVmEnter.size();
+		// Create MiniVM basic blocks
+		RyujinBasicBlockerBuilder MiniVMbb(ZYDIS_MACHINE_MODE_LONG_64, ZydisStackWidth_::ZYDIS_STACK_WIDTH_64);
+		proc.basic_blocks = MiniVMbb.createBasicBlocks(miniVmEnter.data(), proc.size, proc.address);
 		// Configure the MiniVM to obfuscate
-		RyujinObfuscatorConfig minivmmCfg;
+		RyujinObfuscatorConfig minivmmCfg{ 0 };
 		minivmmCfg.m_isJunkCode = true;
 		// Setup Obfuscation Core & Run Pass
 		RyujinObfuscationCore obfc(minivmmCfg, proc, 0x00);
-		obfc.Run(RyujinRunOncePass);
-		// Get Procedure obfuscated result, replace not obfuscated opcodes & delete Obfuscation Core ref.
-		auto procProcessed = obfc.getProcessedProc().getUpdateOpcodes();
+		auto procProcessed = obfc.RunMiniVmObfuscation();
 		miniVmEnter.assign(procProcessed.begin(), procProcessed.end());
 		obfc.~RyujinObfuscationCore();
 
