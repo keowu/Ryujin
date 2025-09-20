@@ -2293,8 +2293,11 @@ bool Ryujin::run(const RyujinObfuscatorConfig& config, const std::shared_ptr<Ryu
 		minivmmCfg.m_isJunkCode = true;
 		// Setup Obfuscation Core & Run Pass
 		RyujinObfuscationCore obfc(minivmmCfg, proc, 0x00);
+		// Running ryujinminivmobfuscation to protect RyujinMiniVm
 		auto procProcessed = obfc.RunMiniVmObfuscation();
+		// Assign MiniVm obfuscated into MiniVmEnter
 		miniVmEnter.assign(procProcessed.begin(), procProcessed.end());
+		// Deleting ryujin obfuscation core instance
 		obfc.~RyujinObfuscationCore();
 
 		// Inserting the Ryujin MiniVm stub at the beginning of Ryujin section
