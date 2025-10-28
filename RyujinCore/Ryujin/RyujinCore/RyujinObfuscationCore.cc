@@ -2702,15 +2702,15 @@ std::vector<ZyanU8> RyujinObfuscationCore::RunMiniVmObfuscation() {
 				ZydisRegister selected_zydis_reg = safe_unused_registers[reg_dis(gen)];
 				asmjit::x86::Gp selected_reg = zydisToAsmJitGp(selected_zydis_reg);
 
+				a.pushf();
 				a.push(selected_reg);
 
 				a.mov(selected_reg, selected_reg);
-
 				a.and_(selected_reg, asmjit::imm(0xFFFFFFFF));
-
 				a.add(selected_reg, asmjit::imm(0));
 
 				a.pop(selected_reg);
+				a.popf();
 
 				code.flatten();
 
