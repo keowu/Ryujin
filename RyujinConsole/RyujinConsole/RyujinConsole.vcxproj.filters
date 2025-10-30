@@ -23,5 +23,8 @@
     <ClInclude Include="RyujinCore.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="RyujinCustomPasses.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
