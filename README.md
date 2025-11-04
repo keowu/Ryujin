@@ -67,6 +67,7 @@ To compile RyujinCore, RyujinConsole, and RyujinGUI, critical dependencies must 
 ```
 vcpkg install asmjit
 vcpkg install zydis
+vcpkg install z3
 ```
 
 For a consistent development environment, consider the following versions:
@@ -75,6 +76,7 @@ For a consistent development environment, consider the following versions:
 asmjit:x64-windows - 2024-06-28
 zycore:x64-windows - 1.5.0
 zydis:x64-windows - 4.1.0
+z3:x64-windows - 4.13.0
 ```
 
 In addition to these critical dependencies, some optional ones exist, for example, ```wxWidgets```, which is required to build RyujinGUI. It can be obtained from the [wxWidgets website](https://wxwidgets.org/downloads/).
