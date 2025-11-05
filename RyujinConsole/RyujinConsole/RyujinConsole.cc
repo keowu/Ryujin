@@ -98,7 +98,7 @@ auto main(int argc, char* argv[]) -> int {
 
     // Registering a new custom pass for invocation via callback
     config.RegisterCallback(RyujinCustomPasses::RyujinCustomPassDemo);
-
+    // Registering MBA Obfuscation Custom Pass
     config.RegisterCallback(RyujinCustomPasses::RyujinMBAObfuscationPass);
 
     if (has_flag(args, "--procs")) {

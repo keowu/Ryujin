@@ -49,6 +49,14 @@ namespace RyujinCustomPasses {
 
     void RyujinMBAObfuscationPass(RyujinProcedure* proc) {
 
+        /*
+            This is a custom obfuscation pass callback that adds MBA-Linear support to the Ryujin Core, allowing
+            mathematical operators in certain procedures with the "mba_" prefix to be obfuscated. This ensures
+            equivalence between the original and obfuscated expressions, increasing analysis difficulty without
+            breaking the core execution logic. SMT SOLVER - Z3-C
+        
+            Currently supports the following linear equivalence instructions: SUB, ADD, XOR, AND, and OR.
+        */
         // Translating Zydis registers to ASMJIT registers
         auto get_asm_reg_64 = [&](ZydisRegister z_reg) -> asmjit::x86::Gp {
 
