@@ -1,0 +1,11 @@
+{
+  "name": "ryujin-protector-deps",
+  "version": "1.0.0",
+  "dependencies": [
+    "asmjit",
+    "zycore",
+    "zydis",
+    "z3",
+    "wxwidgets"
+  ]
+}
