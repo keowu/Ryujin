@@ -106,7 +106,7 @@ Optional dependency for the GUI:
 ---
 ## Research Paper
 
-> To better understand Ryūjin, please read the research paper below:
+> To better understand Ryūjin, please read the research paper:
 [**Ryūjin - Writing a Bin2Bin Obfuscator from Scratch for Windows PE x64 and Fully Deobfuscating It**](https://keowu.re/posts/Ry%C5%ABjin---Writing-a-Bin2Bin-Obfuscator-from-Scratch-for-Windows-PE-x64-and-Fully-Deobfuscating-It)
 
 ---
@@ -116,6 +116,16 @@ For usage examples, flags, advanced options, and full explanations of each featu
 [Ryūjin Wiki](https://github.com/keowu/Ryujin/wiki/Ry%C5%ABjin-Wiki).
 
 ---
-## License
+## Detection & Analysis
 
-**TODO**
+Found malware protected with this? Wondering what to do?
+
+Read the article carefully. from start to finish, don’t skip any part. and you’ll be fully prepared to analyze malware protected with this project.
+
+**This section is reserved for the write-up of the first company that identifies and successfully reverses malware using this project.**
+
+---
+## Licenses
+
+- Ryujin and all its components are distributed under the **GPL-2** license.
+- Ryujin’s paper is distributed under the **CC BY 4.0** license.
