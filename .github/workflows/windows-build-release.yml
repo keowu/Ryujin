@@ -1,0 +1,281 @@
+name: Build (MSVC) and Publish compiled/ to Release
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+  COMPILED_DIR: compiled
+  BUILD_CONFIG_RELEASE: Release
+  BUILD_CONFIG_DEBUG: Debug
+  PLATFORM: x64
+  TRIPLET: x64-windows
+  PLATFORM_TOOLSET: v143
+
+jobs:
+  build-windows-msvc:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar o MSBuild
+        uses: microsoft/setup-msbuild@v1
+
+      - name: Detectar a Windows SDK e exporta-la como ENV
+        shell: pwsh
+        run: |
+          $includeRoot = 'C:\Program Files (x86)\Windows Kits\10\Include'
+          if (Test-Path $includeRoot) {
+            $versions = Get-ChildItem -Path $includeRoot -Directory -ErrorAction SilentlyContinue |
+                        Where-Object { $_.Name -match '^\d+(\.\d+)+' } |
+                        Select-Object -ExpandProperty Name
+            if ($versions -and $versions.Count -gt 0) {
+              $best = $versions | Sort-Object { [version]$_ } -Descending | Select-Object -First 1
+              Write-Host "Found Windows SDK(s): $($versions -join ', '). Selecting: $best"
+              "WINDOWS_SDK_VERSION=$best" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            } else {
+              Write-Host "No numeric SDK folders found under $includeRoot. Will not force WindowsTargetPlatformVersion."
+            }
+          } else {
+            Write-Host "$includeRoot not present on runner. Will not force WindowsTargetPlatformVersion."
+          }
+
+      - name: Download e Configurar o VCPKG
+        shell: pwsh
+        run: |
+          $vroot = $env:VCPKG_ROOT
+          Write-Host "Setting up vcpkg at: $vroot"
+          
+          if (Test-Path $vroot) {
+            Remove-Item -Recurse -Force $vroot
+          }
+
+          $vcpkgUrl = "https://github.com/microsoft/vcpkg/archive/refs/heads/master.zip"
+          $zipPath = "vcpkg-master.zip"
+          Invoke-WebRequest -Uri $vcpkgUrl -OutFile $zipPath
+          
+          Expand-Archive -Path $zipPath -DestinationPath "vcpkg-temp" -Force
+          Move-Item -Path "vcpkg-temp\vcpkg-master" -Destination $vroot -Force
+          Remove-Item -Path "vcpkg-temp" -Recurse -Force
+          Remove-Item -Path $zipPath -Force
+          
+          Set-Location $vroot
+          Write-Host "Running bootstrap..."
+          .\bootstrap-vcpkg.bat
+
+          $vexe = Join-Path $vroot "vcpkg.exe"
+          if (Test-Path $vexe) {
+            Write-Host "SUCCESS: vcpkg.exe is ready"
+          } else {
+            throw "vcpkg.exe not found after setup"
+          }
+
+      - name: Instalar as dependências necessárias para compilar o Ryujin(vcpkg.json)
+        shell: pwsh
+        run: |
+          $repo = $env:GITHUB_WORKSPACE
+          $vexe = Join-Path $env:VCPKG_ROOT "vcpkg.exe"
+          if (-not (Test-Path $vexe)) { throw "vcpkg.exe not found at $vexe" }
+
+          Write-Host "Running vcpkg integrate install..."
+          & $vexe integrate install
+
+          $manifestFile = Join-Path $repo "vcpkg.json"
+          if (Test-Path $manifestFile) {
+            Write-Host "vcpkg.json found at repo root — using manifest mode to install dependencies"
+            Push-Location $repo
+            & $vexe install --triplet $env:TRIPLET
+            $rc = $LASTEXITCODE
+            Pop-Location
+            if ($rc -ne 0) { throw "vcpkg install (manifest) failed with exit code $rc" }
+          } else {
+            Write-Host "No vcpkg.json found — falling back to explicit package installs"
+            & $vexe install asmjit --triplet $env:TRIPLET --classic
+            & $vexe install zycore --triplet $env:TRIPLET --classic
+            & $vexe install zydis --triplet $env:TRIPLET --classic
+            & $vexe install z3 --triplet $env:TRIPLET --classic
+            & $vexe install wxwidgets --triplet $env:TRIPLET --classic
+          }
+
+      - name: Checando diretórios de recursos de Imagem para a GUI do Ryujin
+        shell: pwsh
+        run: |
+          $imgs = Join-Path $env:GITHUB_WORKSPACE "imgs"
+          if (-not (Test-Path $imgs)) { New-Item -ItemType Directory -Path $imgs | Out-Null }
+
+      - name: Build da solução completa do Ryujin
+        shell: pwsh
+        run: |
+          $repo = $env:GITHUB_WORKSPACE
+          $msbuild = "msbuild"
+          $slnPath = Join-Path $repo "RyujinConsole\Ryujin Protector.sln"
+          
+          if (-not (Test-Path $slnPath)) {
+            throw "Solution file not found: $slnPath"
+          }
+          
+          Write-Host "Building solution: $slnPath"
+
+          $configs = @("Debug", "Release")
+          foreach ($config in $configs) {
+            Write-Host "Building $config configuration..."
+            $args = @(
+              $slnPath,
+              "/p:Configuration=$config",
+              "/p:Platform=$env:PLATFORM",
+              "/p:PlatformToolset=$env:PLATFORM_TOOLSET",
+              "/p:VcpkgEnabled=true",
+              "/p:VcpkgEnableManifest=true",
+              "/p:VcpkgInstalledDir=$env:VCPKG_ROOT\installed\$env:TRIPLET",
+              "/m"
+            )
+            if ($env:WINDOWS_SDK_VERSION) {
+              Write-Host "Forcing WindowsTargetPlatformVersion to $env:WINDOWS_SDK_VERSION"
+              $args += "/p:WindowsTargetPlatformVersion=$env:WINDOWS_SDK_VERSION"
+            } else {
+              Write-Host "No specific Windows SDK forced; using runner defaults."
+            }
+            & $msbuild @args
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "Build failed for $config, but continuing to next configuration..."
+            }
+          }
+
+      - name: Verificando arquivos de saída da BUILD da solução do Ryujin
+        shell: pwsh
+        run: |
+          $repo = $env:GITHUB_WORKSPACE
+          Write-Host "=== SEARCHING FOR ALL BUILD OUTPUTS IN WORKSPACE ==="
+          
+          $allBinaries = Get-ChildItem -Path $repo -Recurse -File -ErrorAction SilentlyContinue |
+                       Where-Object { 
+                         $_.Extension -match '\.(exe|dll|lib|pdb|exp)$' -and
+                         $_.FullName -notmatch '\\.git\\' -and
+                         $_.FullName -notmatch '\\vcpkg\\' -and
+                         $_.FullName -notmatch '\\.github\\'
+                       }
+          
+          Write-Host ("Found {0} binary files in workspace:" -f $allBinaries.Count)
+          $allBinaries | ForEach-Object {
+            $sizeKB = [math]::Round($_.Length / 1KB, 2)
+            Write-Host (" - {0} ({1} KB)" -f ($_.FullName.Replace($repo, '').TrimStart('\')), $sizeKB)
+          }
+          
+          Write-Host "=== CHECKING COMPILED DIRECTORIES ==="
+          $compiledDirs = @("compiled", "Compiled")
+          foreach ($dir in $compiledDirs) {
+            $fullPath = Join-Path $repo $dir
+            if (Test-Path $fullPath) {
+              Write-Host ("Contents of {0}:" -f $dir)
+              Get-ChildItem -Path $fullPath -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object {
+                Write-Host (" - {0}" -f ($_.FullName.Replace($repo, '').TrimStart('\')))
+              }
+            } else {
+              Write-Host ("Directory not found: {0}" -f $dir)
+            }
+          }
+
+      - name: Coletando todos os binários de saída da Build da solução do Ryujin
+        shell: pwsh
+        run: |
+          $repo = $env:GITHUB_WORKSPACE
+          $artifactRoot = Join-Path $repo "artifacts"            # NEW staging folder
+          $excludeRegex = '\\.git\\|\\vcpkg_installed\\|\\vcpkg\\|\\.github\\'
+
+          if (Test-Path $artifactRoot) { Remove-Item -Recurse -Force $artifactRoot }
+          New-Item -ItemType Directory -Path $artifactRoot | Out-Null
+
+          Write-Host "=== COLLECTING BINARY FILES INTO ARTIFACT STAGING: $artifactRoot ==="
+
+          $allBinaries = Get-ChildItem -Path $repo -Recurse -File -ErrorAction SilentlyContinue |
+                         Where-Object {
+                           ($_.Extension -match '\.(exe|dll|lib|pdb|exp)$') -and
+                           ($_.FullName -notmatch [regex]::Escape($artifactRoot))
+                         }
+
+          $allBinaries = $allBinaries | Where-Object { -not ($_.FullName -match $excludeRegex) }
+
+          Write-Host ("Found {0} binary files to collect" -f $allBinaries.Count)
+
+          foreach ($file in $allBinaries) {
+            try {
+              $rel = $file.FullName.Substring($repo.Length).TrimStart('\','/')
+              $destPath = Join-Path $artifactRoot $rel
+              $destDir = Split-Path $destPath -Parent
+
+              if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
+
+              Copy-Item -Path $file.FullName -Destination $destPath -Force
+              Write-Host ("COPIED: {0} -> {1}" -f $file.FullName, $destPath)
+            } catch {
+              Write-Host ("ERROR copying {0}: {1}" -f $file.FullName, $_.Exception.Message)
+            }
+          }
+
+          $finalFiles = Get-ChildItem -Path $artifactRoot -Recurse -File -ErrorAction SilentlyContinue
+          Write-Host "=== FINAL COLLECTION SUMMARY ==="
+          Write-Host ("Total files collected into staging: {0}" -f $finalFiles.Count)
+          $finalFiles | ForEach-Object {
+            $sizeKB = [math]::Round($_.Length/1KB, 2)
+            Write-Host (" - {0} ({1} KB)" -f ($_.FullName.Substring($repo.Length).TrimStart('\')), $sizeKB)
+          }
+
+          if ($finalFiles.Count -eq 0) {
+            throw "No artifact files were collected into staging ($artifactRoot). Aborting — check filters and paths."
+          }
+
+      - name: Criando um arquivo ZIP com os arquivos binários de build da solução do Ryujin
+        shell: pwsh
+        run: |
+          $repo = $env:GITHUB_WORKSPACE
+          $zipName = "ryujin-build-${{ github.sha }}.zip"
+          $stagingDir = Join-Path $repo "artifacts"
+
+          Write-Host ("Creating ZIP: {0} from {1}" -f $zipName, $stagingDir)
+
+          if (-not (Test-Path $stagingDir)) {
+            throw "Staging directory not found: $stagingDir"
+          }
+
+          if (Test-Path $zipName) { Remove-Item $zipName -Force }
+
+          Compress-Archive -Path (Join-Path $stagingDir '*') -DestinationPath $zipName -Force
+
+          if (-not (Test-Path $zipName)) {
+            throw "Failed to create zip: $zipName"
+          }
+
+          $zipInfo = Get-Item $zipName
+          Write-Host ("ZIP created: {0} (size: {1} MB)" -f $zipName, [math]::Round($zipInfo.Length/1MB, 2))
+          Write-Host "Sample of staging contents (first 100 files):"
+          Get-ChildItem -Path $stagingDir -Recurse -File | Select-Object -First 100 | ForEach-Object {
+            Write-Host (" - {0}" -f ($_.FullName.Substring($repo.Length).TrimStart('\')))
+          }
+
+      - name: Criando uma nova GitHub Release para o Ryujin
+        uses: softprops/action-gh-release@v2
+        if: success() || failure()
+        with:
+          tag_name: build-${{ github.sha }}
+          name: "Build ${{ github.sha }}"
+          body: |
+            Automated build based on last commit in branch "MAIN" by GitHub Actions CI
+            
+            Commit: ${{ github.sha }}
+            Build date: ${{ github.event.head_commit.timestamp }}
+            
+            Build Status/Integrity: ${{ job.status }}
+            
+          files: |
+            ryujin-build-${{ github.sha }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
